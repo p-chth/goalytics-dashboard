@@ -1,7 +1,7 @@
 # ⚽ Goalytics Dashboard
 
 A Streamlit-based analytics dashboard for visualizing football team performance from your **Goalytics Data Warehouse**.  
-It connects directly to your Postgres (local or Supabase) instance, supporting dynamic filters, trend charts, and detailed Home/Away performance stats.
+It connects directly to your Postgres (local Docker) or Supabase instance, supporting dynamic filters, trend charts, and detailed Home/Away performance stats.
 
 ---
 
@@ -15,7 +15,7 @@ It connects directly to your Postgres (local or Supabase) instance, supporting d
 - 🏠 **Home & Away Analysis** — computed automatically from match data  
   - Includes matches, wins/draws/losses, points, goals for/against, and goal difference
 - 📈 **Historical Trends** — season-over-season points visualization  
-- 🔐 **Secure connection** using `.streamlit/secrets.toml` or environment variables
+- 🔐 **Secure connection** supporting both **local Postgres** and **Supabase** setups
 
 ---
 
@@ -23,7 +23,7 @@ It connects directly to your Postgres (local or Supabase) instance, supporting d
 
 | Layer | Tool / Library | Description |
 |-------|----------------|-------------|
-| Backend | **PostgreSQL** | Data Warehouse (`dw.mv_male_team_summary`, `dw.mv_team_match`) |
+| Backend | **PostgreSQL / Supabase** | Data Warehouse (`dw.mv_male_team_summary`, `dw.mv_team_match`) |
 | Frontend | **Streamlit** | Interactive web dashboard |
 | Data Access | **SQLAlchemy + psycopg2** | Query and cache data |
 | Visualization | **Streamlit native charts** | Line & Area charts for team stats |
@@ -40,28 +40,52 @@ pip install streamlit sqlalchemy psycopg2-binary pandas
 
 ### 2️⃣ Configure database credentials
 
-You can use **either** of the following methods:
+You can connect **either** to your **local Postgres** or **Supabase** instance.  
+Use `.streamlit/secrets.toml` (recommended) or environment variables.
 
 #### 🧩 Option A — `.streamlit/secrets.toml`
+
 Create the file:
+
 ```toml
 # .streamlit/secrets.toml
+
+# --- Local Postgres (Docker or localhost) ---
 PG_HOST = "localhost"
 PG_PORT = "5432"
 PG_DB = "football"
 PG_USER = "airflow"
 PG_PASSWORD = "airflow"
-PGSSLMODE = "prefer"  # or "require" for Supabase
+PGSSLMODE = "prefer"  # use "disable" if SSL not enabled
+
+# --- Supabase (cloud-hosted Postgres) ---
+# Uncomment and fill these if connecting to Supabase instead
+# PG_HOST = "db.<your-supabase-project>.supabase.co"
+# PG_PORT = "5432"
+# PG_DB = "postgres"
+# PG_USER = "postgres"
+# PG_PASSWORD = "<YOUR_SUPABASE_DB_PASSWORD>"
+# PGSSLMODE = "require"   # required for Supabase SSL
 ```
 
 #### 🧩 Option B — Environment variables
+
 ```bash
+# Local Postgres example
 export PG_HOST=localhost
 export PG_PORT=5432
 export PG_DB=football
 export PG_USER=airflow
 export PGPASSWORD=airflow
 export PGSSLMODE=prefer
+
+# Supabase example
+export PG_HOST=db.<your-supabase-project>.supabase.co
+export PG_PORT=5432
+export PG_DB=postgres
+export PG_USER=postgres
+export PGPASSWORD=<YOUR_SUPABASE_DB_PASSWORD>
+export PGSSLMODE=require
 ```
 
 ---
@@ -160,6 +184,26 @@ Run it locally:
 streamlit run app.py
 ```
 Then open → [http://localhost:8501](http://localhost:8501)
+
+---
+
+## ☁️ Streamlit Cloud Deployment
+
+If deploying on [Streamlit Community Cloud](https://streamlit.io/cloud):
+
+1. Push your project to GitHub  
+2. Add the following **App secrets** in the Streamlit Cloud UI under **Settings → Secrets**:
+
+```toml
+PG_HOST = "db.<your-supabase-project>.supabase.co"
+PG_PORT = "5432"
+PG_DB = "postgres"
+PG_USER = "postgres"
+PG_PASSWORD = "<YOUR_SUPABASE_DB_PASSWORD>"
+PGSSLMODE = "require"
+```
+
+3. Run the app — Streamlit will automatically load your secrets.
 
 ---
 
