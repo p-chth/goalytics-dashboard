@@ -1,112 +1,169 @@
-# Goalytics Dashboard (Streamlit)
+# ⚽ Goalytics Dashboard
 
-A lightweight Streamlit app that visualizes team analytics from your Data Warehouse (Postgres or Supabase), reading the materialized view **`dw.mv_male_team_summary`**.
-
----
-
-## 🚀 Deploy on Streamlit Cloud
-
-1. Put this folder in a **separate public GitHub repo** (e.g., `goalytics-dashboard`).
-2. In Streamlit Cloud:
-   - **Main file:** `streamlit_app.py`
-   - **Python version:** 3.11 (recommended)
-   - **Add Secrets** → paste one of the blocks below.
-
-### 🔐 Secrets (Supabase — *Transaction Pooler*)
-Use this if you’re connecting via the Supabase pooler (IPv4 friendly, good for Streamlit Cloud). Get values from **Project → Database → Connection Info**.
-
-```toml
-# Streamlit Cloud → Settings → Secrets
-PGHOST = "aws-<region>.pooler.supabase.com"   # e.g. aws-1-ap-southeast-1.pooler.supabase.com
-PGPORT = "5432"                               # pooler port is usually 5432 (session) or 6543 (transaction)
-PGDATABASE = "postgres"                       # or 'football' if you created one
-PGUSER = "postgres.<PROJECT_REF>"             # e.g. postgres.abcxyz...
-PGPASSWORD = "YOUR_DB_PASSWORD"
-PGSSLMODE = "require"
-```
-
-### 🔐 Secrets (Supabase — *Direct*)
-Use only if your environment supports IPv6 and you connect directly to the DB (not the pooler).
-
-```toml
-PGHOST = "db.<PROJECT_REF>.supabase.co"
-PGPORT = "5432"
-PGDATABASE = "postgres"      
-PGUSER = "postgres"
-PGPASSWORD = "YOUR_DB_PASSWORD"
-PGSSLMODE = "require"
-```
-
-### 🔐 Secrets (Local Postgres)
-If you want the dashboard to hit your local Postgres (from your ETL stack):
-
-```toml
-PGHOST = "localhost"
-PGPORT = "5432"
-PGDATABASE = "football"
-PGUSER = "goalytics"
-PGPASSWORD = "goalytics"
-PGSSLMODE = "prefer"
-```
-
-> The app automatically accepts either `PG_*` or `PG*` names (e.g., `PG_HOST` or `PGHOST`).
+A Streamlit-based analytics dashboard for visualizing football team performance from your **Goalytics Data Warehouse**.  
+It connects directly to your Postgres (local or Supabase) instance, supporting dynamic filters, trend charts, and detailed Home/Away performance stats.
 
 ---
 
-## 🧑‍💻 Run Locally
+## 🚀 Features
 
+- 🕶️ **Dark UI** with modern layout and responsive design  
+- 🔁 **Cascading filters** — each slicer updates automatically based on related selections  
+- 📊 **Dynamic Overview** section:
+  - Matches, Wins, Draws, Losses, Points
+  - Goals Scored / Conceded trends (side-by-side large charts)
+- 🏠 **Home & Away Analysis** — computed automatically from match data  
+  - Includes matches, wins/draws/losses, points, goals for/against, and goal difference
+- 📈 **Historical Trends** — season-over-season points visualization  
+- 🔐 **Secure connection** using `.streamlit/secrets.toml` or environment variables
+
+---
+
+## 🧠 Tech Stack
+
+| Layer | Tool / Library | Description |
+|-------|----------------|-------------|
+| Backend | **PostgreSQL** | Data Warehouse (`dw.mv_male_team_summary`, `dw.mv_team_match`) |
+| Frontend | **Streamlit** | Interactive web dashboard |
+| Data Access | **SQLAlchemy + psycopg2** | Query and cache data |
+| Visualization | **Streamlit native charts** | Line & Area charts for team stats |
+| Styling | **Custom CSS (dark theme)** | Clean, modern interface |
+
+---
+
+## ⚙️ Setup Instructions
+
+### 1️⃣ Install dependencies
 ```bash
-python -m venv .venv
-source .venv/bin/activate           # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install streamlit sqlalchemy psycopg2-binary pandas
+```
 
-# Example: local Postgres
-export PGHOST=localhost PGPORT=5432 PGDATABASE=football PGUSER=goalytics PGPASSWORD=goalytics PGSSLMODE=prefer
+### 2️⃣ Configure database credentials
 
-# OR Example: Supabase (pooler)
-export PGHOST=aws-1-ap-southeast-1.pooler.supabase.com PGPORT=5432 PGDATABASE=postgres PGUSER=postgres.<REF> PGPASSWORD=YOUR_PASS PGSSLMODE=require
+You can use **either** of the following methods:
 
-streamlit run streamlit_app.py
+#### 🧩 Option A — `.streamlit/secrets.toml`
+Create the file:
+```toml
+# .streamlit/secrets.toml
+PG_HOST = "localhost"
+PG_PORT = "5432"
+PG_DB = "football"
+PG_USER = "airflow"
+PG_PASSWORD = "airflow"
+PGSSLMODE = "prefer"  # or "require" for Supabase
+```
+
+#### 🧩 Option B — Environment variables
+```bash
+export PG_HOST=localhost
+export PG_PORT=5432
+export PG_DB=football
+export PG_USER=airflow
+export PGPASSWORD=airflow
+export PGSSLMODE=prefer
 ```
 
 ---
 
-## 📂 Expected DW Objects
+## 🧩 Running the App
 
-This app expects **`dw.mv_male_team_summary`** to exist and be populated. It’s created by your ETL migrations and refreshed by your Airflow DAG. If you see zero rows:
+### ▶️ Local run
+```bash
+streamlit run app.py
+```
 
-- Ensure you ran DB migrations (001..003).
-- Trigger the ETL and the MV refresh tasks.
-- Verify with:
-  ```sql
-  SELECT COUNT(*) FROM dw.mv_male_team_summary;
-  ```
-
----
-
-## 🧩 App Behavior
-
-- Auto-detects common column names for: competition, season, team, matches, wins, draws, losses, points, goals for/against.
-- Sidebar filters: Competition / Season / Team.
-- KPI cards: Overview, Home, Away.
-- Dark main content with **light sidebar inputs** for readability.
-
-> We intentionally keep the layout focused (no extra charts) to match the design brief.
-
----
-
-## 🛠 Troubleshooting
-
-**“❌ Database credentials not provided”**  
-→ Add the **Secrets** in Streamlit Cloud (or export env vars locally). The app reads from `st.secrets` first.
-
-**“relation \"dw.mv_male_team_summary\" does not exist”**  
-→ Run migrations and/or the DAG, or point the app to the correct database/schema.
-
-**Pooler vs Direct**  
-- If you see `MaxClientsInSessionMode` or SSL termination errors, use the **Transaction Pooler** host + port from Supabase and keep `PGSSLMODE=require`.
+### 🐳 Run via Docker
+Add the environment variables in your `docker-compose.yml`:
+```yaml
+services:
+  streamlit:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_DB: football
+      PG_USER: airflow
+      PGPASSWORD: airflow
+      PGSSLMODE: prefer
+```
 
 ---
 
-## 📜 License
-MIT
+## 🧱 Data Requirements
+
+The dashboard expects these **views/tables** in your `dw` schema:
+
+- `dw.mv_male_team_summary` — aggregated per-season, per-team performance  
+- `dw.mv_team_match` — match-level data with at least:
+  - `match_date`
+  - `team_name`
+  - `goals_for`, `goals_against`
+  - `is_home` or `home_away`
+  - (optional) `points`, `result`
+
+---
+
+## 🧭 Layout Overview
+
+```
+Goalytics Dashboard
+├── Sidebar
+│   ├── Competition (dynamic)
+│   ├── Season (dynamic)
+│   └── Team (dynamic)
+│
+├── Overall Stats
+│   ├── Metric cards (Matches, Wins, Draws, Losses, Points)
+│   └── Goals Scored / Conceded line charts
+│
+├── Home & Away Analysis
+│   ├── Home Stats
+│   └── Away Stats
+│
+└── Historical Trends
+    └── Points per Season area chart
+```
+
+---
+
+## 🎨 Customization
+
+You can modify the dark theme via the `<style>` block in `app.py`:
+
+```css
+--bg: #0d1218;        /* background */
+--panel: #121821;     /* card panel */
+--text: #eaf0f7;      /* main text */
+--primary: #1e88e5;   /* highlight blue */
+```
+
+---
+
+## 🛡️ Troubleshooting
+
+| Issue | Likely Cause | Fix |
+|-------|---------------|-----|
+| ❌ Database credentials not provided | `.streamlit/secrets.toml` missing or incorrect | Add valid credentials |
+| ⚪ Empty dashboard / no data | ETL not loaded into `dw.mv_male_team_summary` | Re-run your pipeline |
+| ⚠️ Charts blank | Missing columns (`goals_for`, `match_date`, etc.) | Check your view definitions |
+| 🎨 Dropdown text too light | Cached styles | **Shift+Reload** the browser |
+
+---
+
+## 🏁 Example
+
+Run it locally:
+```bash
+streamlit run app.py
+```
+Then open → [http://localhost:8501](http://localhost:8501)
+
+---
+
+## 🧑‍💻 Author
+
+**Goalytics Project**  
+Developed as part of a Data Platform Engineering portfolio — integrating ETL (Airflow + Spark), Postgres DW, and Streamlit analytics.
